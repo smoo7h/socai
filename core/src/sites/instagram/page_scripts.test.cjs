@@ -625,7 +625,7 @@ test('profile Reel counts come only from the visible View Count Icon and retain 
     icon.parentElement = wrapper;
     return link;
   }
-  const cards = [card('First123', '26.5K'), card('Second123', '268K'), card('Exact123', '1,234'), card('Zero123', '0'), card('Unknown123', null), card('Hidden123', '999', true), card('Bad123', 'Unavailable')];
+  const cards = [card('First123', '26.5K'), card('Second123', '268K'), card('Exact123', '1,234'), card('Zero123', '0'), card('Unknown123', null), card('Hidden123', '999', true), card('Bad123', 'Unavailable'), card('Comments123', '73 comments'), card('Likes123', '414 likes')];
   const main = { querySelectorAll: selector => selector.includes('/reel/') ? cards : [] };
   const document = { querySelector: selector => selector === 'main' ? main : null, querySelectorAll: () => [] };
   const window = { getComputedStyle: () => ({ visibility: 'visible', display: 'block' }) };
@@ -647,6 +647,40 @@ test('profile Reel counts come only from the visible View Count Icon and retain 
     assert.equal(post.view_count_source, 'unavailable');
     assert.equal(post.is_pinned, undefined);
   }
+});
+
+test('empty Reels tab settles independently from the account post count', () => {
+  let now = 0;
+  const metadata = {
+    'og:title': 'Creator (@creator)',
+    description: '10 posts, 100 followers, 2 following',
+  };
+  const main = { querySelector: () => null, querySelectorAll: () => [] };
+  const document = {
+    body: { innerText: 'Hydrated profile with an empty Reels tab' },
+    readyState: 'complete',
+    title: 'Creator',
+    querySelector: selector => {
+      const meta = selector.match(/^meta\[property="([^"]+)"\], meta\[name="\1"\]$/);
+      if (meta && metadata[meta[1]]) return { getAttribute: () => metadata[meta[1]] };
+      if (selector === 'main') return main;
+      return null;
+    },
+    querySelectorAll: () => [],
+  };
+  const window = { getComputedStyle: () => ({ visibility: 'visible', display: 'block' }) };
+  const location = { href: 'https://www.instagram.com/creator/reels/', pathname: '/creator/reels/' };
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, 'page_scripts.js'), 'utf8'), {
+    URL, Date: { now: () => now }, document, window, location,
+  });
+
+  assert.equal(window.SocaiInstagramPageScripts.profileDetail().status, 'hydrating');
+  now = 1000;
+  const detail = window.SocaiInstagramPageScripts.profileDetail();
+  assert.equal(detail.ok, true);
+  assert.equal(detail.status, 'profile');
+  assert.equal(detail.post_count, 10);
+  assert.equal(detail.visible_post_count, 0);
 });
 
 test('profile detail exposes redirected login and challenge gates at the top level', () => {

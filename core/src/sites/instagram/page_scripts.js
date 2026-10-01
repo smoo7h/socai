@@ -682,6 +682,10 @@
       const sibling = node.nextElementSibling;
       if (!visible(sibling) || sibling.querySelector('svg')) continue;
       const text = cleanText(sibling, 100);
+      // The shared metric parser also accepts labelled likes/comments. The
+      // Reels overlay observed beside this icon is a bare numeric reading, so
+      // reject any other text instead of borrowing an ancestor's metric.
+      if (!/^[\d.,]+\s*[KMB万亿]?$/i.test(text)) continue;
       const metric = postMetric(text, 'visible_reels_grid');
       if (metric.value !== null) return {
         view_count: metric.value, view_count_text: text,
@@ -942,7 +946,9 @@
     const privateNotice = profilePrivateNotice();
     const contentAvailable = hasProfileContent() && !!(title || description || visiblePosts.length || privateNotice);
     const stableFor = searchResultStability(visiblePosts.length, `profile-grid:${username}`);
-    const gridReady = !!privateNotice || (stableFor >= 800 && (visiblePosts.length > 0 || stats.post_count === 0));
+    const reelsTab = /^\/[A-Za-z0-9._]+\/reels\/?$/i.test(location.pathname);
+    const gridReady = !!privateNotice || (stableFor >= 800 &&
+      (visiblePosts.length > 0 || stats.post_count === 0 || reelsTab));
     const detail = {
       ok: contentAvailable && gridReady && !state.login_required && !state.login_gate_present && !state.challenge_required && !state.rate_limited,
       status: !contentAvailable ? (state.login_required ? 'login_required' : 'unhydrated') : gridReady ? 'profile' : 'hydrating',
